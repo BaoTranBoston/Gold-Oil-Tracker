@@ -1,22 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gold & Oil Tracker</title>
+    <title>Live Portfolio | 2026</title>
     <style>
-        body { background: #131722; color: white; font-family: sans-serif; margin: 0; padding: 10px; }
-        .container { display: flex; flex-direction: column; gap: 10px; height: 100vh; }
-        .chart { flex: 1; border-radius: 8px; overflow: hidden; }
+        :root { --bg: #131722; --card: #1e222d; --text: #d1d4dc; --green: #089981; --red: #f23645; --blue: #2962ff; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; margin: 0; padding: 15px; }
+        .bar { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { background: var(--card); border: 1px solid #363a45; color: white; padding: 12px; border-radius: 6px; flex: 1; font-size: 16px; }
+        button { background: var(--blue); color: white; border: none; padding: 0 20px; border-radius: 6px; font-weight: bold; }
+        .table-container { background: var(--card); border-radius: 8px; overflow-x: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        table { width: 100%; border-collapse: collapse; min-width: 400px; }
+        th, td { padding: 14px; text-align: left; border-bottom: 1px solid #363a45; }
+        th { background: #2a2e39; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #787b86; }
+        .symbol { font-weight: bold; color: white; }
+        .val { font-weight: 500; }
+        .up { color: var(--green); }
+        .down { color: var(--red); }
+        .share-box { width: 70px; background: transparent; border: 1px solid #434651; border-radius: 4px; text-align: center; }
+        .total-banner { font-size: 24px; font-weight: bold; color: white; margin-bottom: 15px; padding-left: 5px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="chart">
-            <iframe src="https://s.tradingview.com/widgetembed/?symbol=AMEX:IAUM&interval=D&theme=dark" width="100%" height="100%" frameborder="0"></iframe>
-        </div>
-        <div class="chart">
-            <iframe src="https://s.tradingview.com/widgetembed/?symbol=NYSE:XLE&interval=D&theme=dark" width="100%" height="100%" frameborder="0"></iframe>
-        </div>
+
+    <div class="total-banner">Total: $<span id="grandTotal">0.00</span></div>
+
+    <div class="bar">
+        <input type="text" id="tInput" placeholder="Enter Ticker (IAUM, XLE...)">
+        <button onclick="addStock()">ADD</button>
     </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Shares</th>
+                    <th>Total Value</th>
+                    <th>Day Chg %</th>
+                </tr>
+            </thead>
+            <tbody id="sBody"></tbody>
+        </table>
+    </div>
+
+    <script>
+        const TOKEN = 'd5ufna9r01qr4f89257gd5ufna9r01qr4f892580';
+        
+        async function addStock() {
+            const sym = document.getElementById('tInput').value.toUpperCase();
+            if(!sym) return;
+
+            try {
+                const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${TOKEN}`);
+                const d = await res.json();
+                
+                if(d.c === 0) { alert("Ticker not found"); return; }
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="symbol">${sym}</td>
+                    <td>$${d.c.toFixed(2)}</td>
+                    <td><input type="number" class="share-box" value="1" oninput="recalc()"></td>
+                    <td class="val">$${d.c.toFixed(2)}</td>
+                    <td class="${d.dp >= 0 ? 'up' : 'down'}">${d.dp.toFixed(2)}%</td>
+                `;
+                row.dataset.price = d.c;
+                document.getElementById('sBody').appendChild(row);
+                document.getElementById('tInput').value = '';
+                recalc();
+            } catch (e) { console.error("API Error", e); }
+        }
+
+        function recalc() {
+            let grand = 0;
+            document.querySelectorAll('#sBody tr').forEach(tr => {
+                const price = parseFloat(tr.dataset.price);
+                const shares = parseFloat(tr.querySelector('.share-box').value) || 0;
+                const total = price * shares;
+                tr.querySelector('.val').innerText = `$${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                grand += total;
+            });
+            document.getElementById('grandTotal').innerText = grand.toLocaleString(undefined, {minimumFractionDigits: 2});
+        }
+    </script>
 </body>
 </html>
